@@ -40,7 +40,7 @@ func buildUI() (*tview.Flex, error) {
 	if err != nil {
 		return nil, fmt.Errorf("retrieving sessions: %v", err)
 	}
-	addComponents(root, sessions)
+	addComponents(root, sessions, tcell.ColorBlue)
 
 	centerRowFlex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(nil, 0, 1, false).
