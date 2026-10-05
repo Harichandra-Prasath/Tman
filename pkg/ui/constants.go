@@ -7,4 +7,5 @@ var guideText = `[#D8DEE9::b]GLOBAL[-:-:-]
 [#D8DEE9::b]NODE ACTIONS[-:-:-]
 [#81A1C1]d      [-]   Delete target
 [#81A1C1]enter  [-]   Expand/Collapse
+[#81A1C1]s      [-]   Switch to target
 `

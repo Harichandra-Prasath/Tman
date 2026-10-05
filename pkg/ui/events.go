@@ -63,7 +63,7 @@ func appKeyHooks(app *tview.Application, tree *tview.TreeView, eventPanel *tview
 	}
 }
 
-func treeKeyHooks(tree *tview.TreeView, infoPanel *tview.TextView, eventPanel *tview.TextView) func(*tcell.EventKey) *tcell.EventKey {
+func treeKeyHooks(tree *tview.TreeView, infoPanel *tview.TextView, eventPanel *tview.TextView, app *tview.Application) func(*tcell.EventKey) *tcell.EventKey {
 	return func(event *tcell.EventKey) *tcell.EventKey {
 		node := tree.GetCurrentNode()
 		_ref := node.GetReference()
@@ -83,6 +83,15 @@ func treeKeyHooks(tree *tview.TreeView, infoPanel *tview.TextView, eventPanel *t
 			// Remove the nodes
 			infoPanel.Clear()
 			deleteNode(tree, node)
+		case 's':
+			msg, err := tman.SwitchTmuxComponent(comp)
+			if err != nil {
+				infoPanel.SetText(fmt.Sprintf("switching to target: %v", err)).SetTextColor(tcell.ColorRed)
+				return event
+			}
+
+			eventPanel.SetText(msg).SetTextColor(tcell.ColorGreen)
+			app.Stop()
 		default:
 			return event
 		}

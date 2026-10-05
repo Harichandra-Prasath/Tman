@@ -34,7 +34,7 @@ func buildUI(app *tview.Application) (*tview.Flex, error) {
 	sidePanel.SetText(guideText)
 
 	tree := tview.NewTreeView()
-	tree.SetInputCapture(treeKeyHooks(tree, infoPanel, eventPanel))
+	tree.SetInputCapture(treeKeyHooks(tree, infoPanel, eventPanel, app))
 	tree.SetTitle(" Tman - tmux Manager ").SetBorder(true).SetTitleColor(tcell.ColorWhiteSmoke)
 	tree.SetChangedFunc(hoverTreeHook(infoPanel))
 	tree.SetSelectedFunc(selectedNodeHook(infoPanel))
