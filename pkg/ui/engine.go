@@ -25,15 +25,23 @@ func StartUI() error {
 func buildUI() (*tview.Flex, error) {
 	// Info Panel
 	infoPanel := tview.NewTextView().SetDynamicColors(true)
-	infoPanel.SetTitle("Details").SetBorder(true)
+	infoPanel.SetTitle(" Details ").SetBorder(true)
+
+	eventPanel := tview.NewTextView().SetDynamicColors(true)
+	eventPanel.SetTitle(" Events ").SetBorder(true)
+
+	sidePanel := tview.NewTextView().SetDynamicColors(true)
+	sidePanel.SetTitle(" Guide ").SetBorder(true)
+	sidePanel.SetText(guideText)
 
 	tree := tview.NewTreeView()
-	tree.SetInputCapture(treeKeyHooks(tree, infoPanel))
-	tree.SetTitle("Tman - tmux Manager").SetBorder(true).SetTitleColor(tcell.ColorWhiteSmoke)
+	tree.SetInputCapture(treeKeyHooks(tree, infoPanel, eventPanel))
+	tree.SetTitle(" Tman - tmux Manager ").SetBorder(true).SetTitleColor(tcell.ColorWhiteSmoke)
 	tree.SetChangedFunc(hoverTreeHook(infoPanel))
 	tree.SetSelectedFunc(selectedNodeHook(infoPanel))
 
-	compFlex := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(tree, 0, 2, true).AddItem(infoPanel, 0, 1, false)
+	compFlex := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(tree, 0, 5, true).AddItem(infoPanel, 0, 3, false).AddItem(eventPanel, 0, 2, false)
+	mainFlex := tview.NewFlex().AddItem(compFlex, 0, 65, true).AddItem(sidePanel, 0, 35, false)
 
 	rootComp, sessions, err := tman.GetRootAndSessions()
 	if err != nil {
@@ -50,11 +58,11 @@ func buildUI() (*tview.Flex, error) {
 
 	centerRowFlex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(nil, 0, 1, false).
-		AddItem(compFlex, 20, 1, true).
+		AddItem(mainFlex, 20, 1, true).
 		AddItem(nil, 0, 1, false)
 	centerColFlex := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(nil, 0, 1, false).
-		AddItem(centerRowFlex, 60, 1, true).
+		AddItem(centerRowFlex, 80, 1, true).
 		AddItem(nil, 0, 1, false)
 
 	return centerColFlex, nil
