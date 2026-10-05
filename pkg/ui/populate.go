@@ -31,8 +31,10 @@ func hoverTreeHook(infoPanel *tview.TextView) func(*tview.TreeNode) {
 	}
 }
 
+var _selectedWebhook func(*tview.TreeNode)
+
 func selectedNodeHook(infoPanel *tview.TextView) func(*tview.TreeNode) {
-	return func(node *tview.TreeNode) {
+	_selectedWebhook = func(node *tview.TreeNode) {
 		ref := node.GetReference().(*tman.TmuxTreeNode)
 		if ref == nil {
 			return
@@ -42,6 +44,16 @@ func selectedNodeHook(infoPanel *tview.TextView) func(*tview.TreeNode) {
 		if len(children) == 0 {
 			var nodes []*tman.TmuxTreeNode
 			switch ref := ref.Component.(type) {
+			case *tman.Root:
+				root, sessions, err := tman.GetRootAndSessions()
+				if err != nil {
+					infoPanel.SetText(fmt.Sprintf("error getting sessions: %v", err)).SetTextColor(tcell.ColorRed)
+				}
+				node.GetReference().(*tman.TmuxTreeNode).Component = root
+				for _, session := range sessions {
+					nodes = append(nodes, &tman.TmuxTreeNode{Parent: node, Component: session})
+				}
+				addNodes(node, nodes, tcell.ColorBlue)
 			case *tman.Session:
 				windows, err := tman.GetWindows(ref)
 				if err != nil {
@@ -69,4 +81,6 @@ func selectedNodeHook(infoPanel *tview.TextView) func(*tview.TreeNode) {
 			node.SetExpanded(!node.IsExpanded())
 		}
 	}
+
+	return _selectedWebhook
 }

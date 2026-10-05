@@ -10,8 +10,7 @@ import (
 
 func StartUI() error {
 	app := tview.NewApplication()
-	app.SetInputCapture(appKeyHooks(app))
-	mainFlex, err := buildUI()
+	mainFlex, err := buildUI(app)
 	if err != nil {
 		return fmt.Errorf("building ui: %v", err)
 	}
@@ -22,7 +21,7 @@ func StartUI() error {
 	return nil
 }
 
-func buildUI() (*tview.Flex, error) {
+func buildUI(app *tview.Application) (*tview.Flex, error) {
 	// Info Panel
 	infoPanel := tview.NewTextView().SetDynamicColors(true)
 	infoPanel.SetTitle(" Details ").SetBorder(true)
@@ -64,6 +63,8 @@ func buildUI() (*tview.Flex, error) {
 		AddItem(nil, 0, 1, false).
 		AddItem(centerRowFlex, 80, 1, true).
 		AddItem(nil, 0, 1, false)
+
+	app.SetInputCapture(appKeyHooks(app, tree, eventPanel))
 
 	return centerColFlex, nil
 }

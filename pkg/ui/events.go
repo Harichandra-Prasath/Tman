@@ -32,11 +32,17 @@ func deleteNode(node *tview.TreeNode) {
 	}
 }
 
-func appKeyHooks(app *tview.Application) func(*tcell.EventKey) *tcell.EventKey {
+func appKeyHooks(app *tview.Application, tree *tview.TreeView, eventPanel *tview.TextView) func(*tcell.EventKey) *tcell.EventKey {
 	return func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Rune() == 'q' || event.Key() == tcell.KeyEscape {
 			app.Stop()
 			return nil
+		} else if event.Rune() == 'r' {
+			root := tree.GetRoot()
+			root.SetChildren([]*tview.TreeNode{})
+			_selectedWebhook(root)
+			tree.SetCurrentNode(root)
+			eventPanel.SetText("Tree Synced with Tmux Server").SetTextColor(tcell.ColorGreen)
 		}
 		return event
 	}
@@ -57,7 +63,6 @@ func treeKeyHooks(tree *tview.TreeView, infoPanel *tview.TextView, eventPanel *t
 			eventPanel.SetText(msg).SetTextColor(tcell.ColorGreen)
 			// Remove the nodes
 			deleteNode(node)
-
 		default:
 			return event
 		}
