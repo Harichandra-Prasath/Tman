@@ -10,7 +10,7 @@ import (
 
 func StartUI() error {
 	app := tview.NewApplication()
-
+	app.SetInputCapture(appKeyHooks(app))
 	mainFlex, err := buildUI()
 	if err != nil {
 		return fmt.Errorf("building ui: %v", err)
@@ -27,20 +27,26 @@ func buildUI() (*tview.Flex, error) {
 	infoPanel := tview.NewTextView().SetDynamicColors(true)
 	infoPanel.SetTitle("Details").SetBorder(true)
 
-	// Main Tree
-	root := tview.NewTreeNode("Sessions").SetColor(tcell.ColorGreen)
-	tree := tview.NewTreeView().SetRoot(root).SetCurrentNode(root)
-	tree.SetTitle("Tman - tmux Manager").SetBorder(true)
+	tree := tview.NewTreeView()
+	tree.SetInputCapture(treeKeyHooks(tree, infoPanel))
+	tree.SetTitle("Tman - tmux Manager").SetBorder(true).SetTitleColor(tcell.ColorWhiteSmoke)
 	tree.SetChangedFunc(hoverTreeHook(infoPanel))
 	tree.SetSelectedFunc(selectedNodeHook(infoPanel))
 
 	compFlex := tview.NewFlex().SetDirection(tview.FlexRow).AddItem(tree, 0, 2, true).AddItem(infoPanel, 0, 1, false)
 
-	sessions, err := tman.GetSessions()
+	rootComp, sessions, err := tman.GetRootAndSessions()
 	if err != nil {
-		return nil, fmt.Errorf("retrieving sessions: %v", err)
+		return nil, fmt.Errorf("retrieving root and sessions: %v", err)
 	}
-	addComponents(root, sessions, tcell.ColorBlue)
+	root := tview.NewTreeNode(rootComp.Name()).SetReference(&tman.TmuxTreeNode{Parent: nil, Component: rootComp}).SetColor(tcell.ColorGreen)
+	tree.SetRoot(root).SetCurrentNode(root)
+
+	var rootChilds []*tman.TmuxTreeNode
+	for _, session := range sessions {
+		rootChilds = append(rootChilds, &tman.TmuxTreeNode{Parent: root, Component: session})
+	}
+	addNodes(root, rootChilds, tcell.ColorBlue)
 
 	centerRowFlex := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(nil, 0, 1, false).

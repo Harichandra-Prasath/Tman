@@ -27,19 +27,10 @@ func runStandard(cmd *exec.Cmd) (*bufio.Scanner, error) {
 	return scanner, nil
 }
 
-func IsReachable() bool {
-	cmd := exec.Command("tmux", "-V")
-	err := cmd.Run()
-	if err != nil {
-		return false
-	}
-	return true
-}
-
-func parseSessionLine(lineText string) (*Session, error) {
+func parseSessionLine(lineText string, rootBuild bool) (*Session, *Root, error) {
 	details := strings.Split(lineText, ":")
-	if len(details) != 4 {
-		return nil, fmt.Errorf("parse error: unexpected line text")
+	if len(details) != 8 {
+		return nil, nil, fmt.Errorf("parse error: unexpected line text")
 	}
 
 	sessionID := details[0]
@@ -53,35 +44,55 @@ func parseSessionLine(lineText string) (*Session, error) {
 
 	sessionDirectory := details[3]
 
-	return &Session{SessionName: sessionID, WindowsCount: windowCounts, CreatedAt: createdAt, Directory: sessionDirectory}, nil
-}
+	root := &Root{}
+	if rootBuild {
+		version := details[4]
+		socketPath := details[5]
+		user := details[6]
+		sessionsCount, _ := strconv.Atoi(details[7])
 
-func GetSessions() ([]*Session, error) {
-	var sessions []*Session
-
-	cmd := exec.Command("tmux", "list-sessions", "-F", "#{session_name}:#{session_windows}:#{session_created}:#{session_path}")
-	scanner, err := runStandard(cmd)
-	if err != nil {
-		return nil, fmt.Errorf("executing list sessions: %v", err)
+		root.version = version
+		root.socketPath = socketPath
+		root.user = user
+		root.sessionsCount = sessionsCount
 	}
 
+	return &Session{sessionName: sessionID, windowsCount: windowCounts, createdAt: createdAt, directory: sessionDirectory}, root, nil
+}
+
+func GetRootAndSessions() (*Root, []*Session, error) {
+	var sessions []*Session
+	var root *Root
+
+	cmd := exec.Command("tmux", "list-sessions", "-F", "#{session_name}:#{session_windows}:#{session_created}:#{session_path}:#{version}:#{socket_path}:#{user}:#{server_sessions}")
+	scanner, err := runStandard(cmd)
+	if err != nil {
+		return nil, nil, fmt.Errorf("executing list sessions: %v", err)
+	}
+
+	rootBuild := true
 	for scanner.Scan() {
 		lineText := scanner.Text()
-		session, err := parseSessionLine(lineText)
+		session, _root, err := parseSessionLine(lineText, rootBuild)
+		if rootBuild {
+			root = _root
+			rootBuild = false
+		}
+		session.root = root
 		if err != nil {
-			return nil, fmt.Errorf("line text parsing: %v", err)
+			return nil, nil, fmt.Errorf("line text parsing: %v", err)
 		}
 		sessions = append(sessions, session)
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("scanner error: %v", err)
+		return nil, nil, fmt.Errorf("scanner error: %v", err)
 	}
 
-	return sessions, nil
+	return root, sessions, nil
 }
 
-func parseWindowLine(lineText string, sessionName string) (*Window, error) {
+func parseWindowLine(lineText string) (*Window, error) {
 	details := strings.Split(lineText, ":")
 	if len(details) != 3 {
 		return nil, fmt.Errorf("parse error: unexpected line text")
@@ -93,13 +104,13 @@ func parseWindowLine(lineText string, sessionName string) (*Window, error) {
 
 	windowName := details[2]
 
-	return &Window{ParentSessionName: sessionName, WindowIndex: windowIndex, PanesCount: paneCount, WindowName: windowName}, nil
+	return &Window{windowIndex: windowIndex, panesCount: paneCount, windowName: windowName}, nil
 }
 
 func GetWindows(session *Session) ([]*Window, error) {
 	var windows []*Window
 
-	cmd := exec.Command("tmux", "list-windows", "-t", session.SessionName, "-F", "#{window_index}:#{window_panes}:#{window_name}")
+	cmd := exec.Command("tmux", "list-windows", "-t", session.sessionName, "-F", "#{window_index}:#{window_panes}:#{window_name}")
 	scanner, err := runStandard(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("executing list windows: %v", err)
@@ -107,7 +118,8 @@ func GetWindows(session *Session) ([]*Window, error) {
 
 	for scanner.Scan() {
 		lineText := scanner.Text()
-		window, err := parseWindowLine(lineText, session.SessionName)
+		window, err := parseWindowLine(lineText)
+		window.parentSession = session
 		if err != nil {
 			return nil, fmt.Errorf("line text parsing: %v", err)
 		}
@@ -133,13 +145,13 @@ func parsePaneLine(lineText string) (*Pane, error) {
 
 	paneCurrentPath := details[2]
 
-	return &Pane{PaneIndex: paneIndex, PaneCurrentCommand: paneCurrentCommand, PaneCurrentPath: paneCurrentPath}, nil
+	return &Pane{paneIndex: paneIndex, paneCurrentCommand: paneCurrentCommand, paneCurrentPath: paneCurrentPath}, nil
 }
 
 func GetPanes(window *Window) ([]*Pane, error) {
 	var panes []*Pane
 
-	cmd := exec.Command("tmux", "list-panes", "-t", window.ParentSessionName+":"+window.WindowIndex, "-F", "#{pane_index}:#{pane_current_command}:#{pane_current_path}")
+	cmd := exec.Command("tmux", "list-panes", "-t", window.parentSession.sessionName+":"+window.windowIndex, "-F", "#{pane_index}:#{pane_current_command}:#{pane_current_path}")
 	scanner, err := runStandard(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("executing list panes: %v", err)
@@ -151,6 +163,7 @@ func GetPanes(window *Window) ([]*Pane, error) {
 		if err != nil {
 			return nil, fmt.Errorf("line text parsing: %v", err)
 		}
+		pane.parentWindow = window
 		panes = append(panes, pane)
 	}
 
