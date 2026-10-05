@@ -10,6 +10,7 @@ func DeleteTmuxComponent(comp TmuxComponent) (string, error) {
 	var msg string
 	switch ref := comp.(type) {
 	case *Root:
+		msg = "Tmux Server Killed"
 		cmd = exec.Command("tmux", "kill-server")
 	case *Session:
 		target := ref.sessionName
