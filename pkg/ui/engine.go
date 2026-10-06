@@ -8,20 +8,20 @@ import (
 	tview "github.com/rivo/tview"
 )
 
-func StartUI() error {
+func StartUI(cfg *tman.TmanConfig) error {
 	app := tview.NewApplication()
-	mainFlex, err := buildUI(app)
+	pages, err := buildUI(app, cfg)
 	if err != nil {
 		return fmt.Errorf("building ui: %v", err)
 	}
 
-	if err := app.SetRoot(mainFlex, true).Run(); err != nil {
+	if err := app.SetRoot(pages, true).Run(); err != nil {
 		return fmt.Errorf("running ui: %v", err)
 	}
 	return nil
 }
 
-func buildUI(app *tview.Application) (*tview.Flex, error) {
+func buildUI(app *tview.Application, cfg *tman.TmanConfig) (*tview.Pages, error) {
 	// Info Panel
 	infoPanel := tview.NewTextView().SetDynamicColors(true)
 	infoPanel.SetTitle(" Details ").SetBorder(true)
@@ -64,7 +64,10 @@ func buildUI(app *tview.Application) (*tview.Flex, error) {
 		AddItem(centerRowFlex, 80, 1, true).
 		AddItem(nil, 0, 1, false)
 
-	app.SetInputCapture(appKeyHooks(app, tree, eventPanel))
+	pages := tview.NewPages()
+	pages.AddPage("main", centerColFlex, true, true)
 
-	return centerColFlex, nil
+	app.SetInputCapture(appKeyHooks(app, pages, tree, eventPanel, infoPanel, cfg))
+
+	return pages, nil
 }

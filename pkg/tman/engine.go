@@ -29,8 +29,12 @@ func runStandard(cmd *exec.Cmd) (*bufio.Scanner, error) {
 
 func parseSessionLine(lineText string, rootBuild bool) (*Session, *Root, error) {
 	details := strings.Split(lineText, ":")
-	if len(details) != 8 {
+	if rootBuild && len(details) != 8 {
 		return nil, nil, fmt.Errorf("parse error: unexpected line text")
+	}
+
+	if len(details) < 4 {
+		return nil, nil, fmt.Errorf("parse error: unexpected line text: %v", lineText)
 	}
 
 	sessionID := details[0]

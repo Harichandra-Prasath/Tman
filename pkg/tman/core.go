@@ -6,6 +6,10 @@ import (
 	"github.com/rivo/tview"
 )
 
+type TmanConfig struct {
+	WorkDir string
+}
+
 type TmuxTreeNode struct {
 	Parent    *tview.TreeNode
 	Component TmuxComponent

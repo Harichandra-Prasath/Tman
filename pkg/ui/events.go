@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/Harichandra-Prasath/Tman/pkg/tman"
 	"github.com/gdamore/tcell/v2"
@@ -37,26 +39,83 @@ func deleteNode(tree *tview.TreeView, node *tview.TreeNode) {
 	}
 }
 
-func appKeyHooks(app *tview.Application, tree *tview.TreeView, eventPanel *tview.TextView) func(*tcell.EventKey) *tcell.EventKey {
+func dropDownHook(workDir string, pages *tview.Pages, infoPanel *tview.TextView, root *tview.TreeNode, eventPanel *tview.TextView) func(string, int) {
+	return func(text string, index int) {
+		defer pages.RemovePage("dropdown")
+		rootComp := root.GetReference().(*tman.TmuxTreeNode).Component.(*tman.Root)
+
+		decision := filepath.Join(workDir, text)
+		session, err := tman.CreateSessionComponent(decision, text, rootComp)
+		if err != nil {
+			infoPanel.SetText(fmt.Sprintf("error creating session: %v", err)).SetTextColor(tcell.ColorRed)
+			return
+		}
+		node := &tman.TmuxTreeNode{Parent: root, Component: session}
+		addNodes(root, []*tman.TmuxTreeNode{node}, tcell.ColorBlue)
+		eventPanel.SetText(fmt.Sprintf("New Session Created: %s", session.Name())).SetTextColor(tcell.ColorGreen)
+		rootComp.SetChildCount(rootComp.GetChildCount() + 1)
+	}
+}
+
+func handleDropdown(app *tview.Application, pages *tview.Pages, root *tview.TreeNode, infoPanel *tview.TextView, eventPanel *tview.TextView, cfg *tman.TmanConfig) error {
+	workDir := cfg.WorkDir
+	entries, err := os.ReadDir(workDir)
+	if err != nil {
+		return fmt.Errorf("error creating session: %v", err)
+	}
+	var dirs []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			dirs = append(dirs, entry.Name())
+		}
+	}
+
+	dropDown := tview.NewDropDown()
+	dropDown.SetOptions(dirs, dropDownHook(workDir, pages, infoPanel, root, eventPanel))
+	dropDown.SetBorder(true).SetTitle(" Directories ")
+
+	overlay := tview.NewGrid().
+		SetColumns(0, 30, 0).
+		SetRows(0, 10, 0).
+		AddItem(dropDown, 1, 1, 1, 1, 0, 0, true)
+
+	pages.AddPage("dropdown", overlay, true, true)
+	app.SetFocus(dropDown)
+	return nil
+}
+
+func refreshTree(tree *tview.TreeView) *tview.TreeNode {
+	root := tree.GetRoot()
+	tree.SetRoot(nil)
+	if root == nil {
+		// create a dummy root and attach [Eventually will be replaced]
+		root = tview.NewTreeNode("Tmux Server")
+		root.SetReference(&tman.TmuxTreeNode{Component: &tman.Root{}})
+	}
+	root.ClearChildren()
+	_selectedWebhook(root)
+	return root
+}
+
+func appKeyHooks(app *tview.Application, pages *tview.Pages, tree *tview.TreeView, eventPanel *tview.TextView, infoPanel *tview.TextView, cfg *tman.TmanConfig) func(*tcell.EventKey) *tcell.EventKey {
 	return func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Rune() == 'q' || event.Key() == tcell.KeyEscape {
 			app.Stop()
 			return nil
 		} else if event.Rune() == 'r' {
-			root := tree.GetRoot()
-			tree.SetRoot(nil)
-			if root == nil {
-				// create a dummy root and attach [Eventually will be replaced]
-				root = tview.NewTreeNode("Tmux Server")
-				root.SetReference(&tman.TmuxTreeNode{Component: &tman.Root{}})
-			}
-			root.ClearChildren()
-			_selectedWebhook(root)
+			root := refreshTree(tree)
 
 			// Possible failure case
 			if len(root.GetChildren()) != 0 {
 				tree.SetRoot(root)
 				eventPanel.SetText("Tree Synced with Tmux Server").SetTextColor(tcell.ColorGreen)
+			}
+		} else if event.Rune() == 'c' {
+			root := tree.GetRoot()
+			err := handleDropdown(app, pages, root, infoPanel, eventPanel, cfg)
+			if err != nil {
+				infoPanel.SetText(fmt.Sprintf("error creating session: %v", err)).SetTextColor(tcell.ColorRed)
+				return nil
 			}
 		}
 		return event

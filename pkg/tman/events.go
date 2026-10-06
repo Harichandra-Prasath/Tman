@@ -3,6 +3,8 @@ package tman
 import (
 	"fmt"
 	"os/exec"
+	"strings"
+	"time"
 )
 
 func DeleteTmuxComponent(comp TmuxComponent) (string, error) {
@@ -68,4 +70,27 @@ func SwitchTmuxComponent(comp TmuxComponent) (string, error) {
 	}
 
 	return msg, nil
+}
+
+func CreateSessionComponent(sessionDir string, name string, rootComp *Root) (*Session, error) {
+	// drop the . for hidden folders
+	name = strings.TrimPrefix(name, ".")
+
+	cmd := exec.Command("tmux", "new-session", "-d", "-c", sessionDir, "-n", name, "-s", name)
+	_, err := runStandard(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("executing new session: %v", err)
+	}
+
+	t := time.Now()
+
+	session := &Session{
+		root:         rootComp,
+		sessionName:  name,
+		windowsCount: 1,
+		createdAt:    t.Format("Jan 02 Mon 15:04"),
+		directory:    sessionDir,
+	}
+
+	return session, nil
 }
