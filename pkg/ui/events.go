@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/Harichandra-Prasath/Tman/pkg/tman"
 	"github.com/gdamore/tcell/v2"
@@ -39,13 +38,12 @@ func deleteNode(tree *tview.TreeView, node *tview.TreeNode) {
 	}
 }
 
-func dropDownHook(workDir string, pages *tview.Pages, infoPanel *tview.TextView, root *tview.TreeNode, eventPanel *tview.TextView) func(string, int) {
-	return func(text string, index int) {
+func dropDownSelectedHook(pages *tview.Pages, infoPanel *tview.TextView, root *tview.TreeNode, eventPanel *tview.TextView, selectedText string) func() {
+	return func() {
 		defer pages.RemovePage("dropdown")
 		rootComp := root.GetReference().(*tman.TmuxTreeNode).Component.(*tman.Root)
 
-		decision := filepath.Join(workDir, text)
-		session, err := tman.CreateSessionComponent(decision, text, rootComp)
+		session, err := tman.CreateSessionComponent(selectedText, rootComp)
 		if err != nil {
 			infoPanel.SetText(fmt.Sprintf("error creating session: %v", err)).SetTextColor(tcell.ColorRed)
 			return
@@ -57,8 +55,8 @@ func dropDownHook(workDir string, pages *tview.Pages, infoPanel *tview.TextView,
 	}
 }
 
-func handleDropdown(app *tview.Application, pages *tview.Pages, root *tview.TreeNode, infoPanel *tview.TextView, eventPanel *tview.TextView, cfg *tman.TmanConfig) error {
-	workDir := cfg.WorkDir
+func handleDropdown(app *tview.Application, pages *tview.Pages, root *tview.TreeNode, infoPanel *tview.TextView, eventPanel *tview.TextView) error {
+	workDir := tman.GlobalTmanConfig.WorkDir
 	entries, err := os.ReadDir(workDir)
 	if err != nil {
 		return fmt.Errorf("error creating session: %v", err)
@@ -70,9 +68,7 @@ func handleDropdown(app *tview.Application, pages *tview.Pages, root *tview.Tree
 		}
 	}
 
-	dropDown := tview.NewDropDown()
-	dropDown.SetOptions(dirs, dropDownHook(workDir, pages, infoPanel, root, eventPanel))
-	dropDown.SetBorder(true).SetTitle(" Directories ")
+	dropDown := createSearchableList(app, pages, infoPanel, eventPanel, root, dirs)
 
 	overlay := tview.NewGrid().
 		SetColumns(0, 30, 0).
@@ -97,7 +93,7 @@ func refreshTree(tree *tview.TreeView) *tview.TreeNode {
 	return root
 }
 
-func appKeyHooks(app *tview.Application, pages *tview.Pages, tree *tview.TreeView, eventPanel *tview.TextView, infoPanel *tview.TextView, cfg *tman.TmanConfig) func(*tcell.EventKey) *tcell.EventKey {
+func globalKeyHooks(app *tview.Application, pages *tview.Pages, tree *tview.TreeView, eventPanel *tview.TextView, infoPanel *tview.TextView) func(*tcell.EventKey) *tcell.EventKey {
 	return func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Rune() == 'q' || event.Key() == tcell.KeyEscape {
 			app.Stop()
@@ -112,7 +108,7 @@ func appKeyHooks(app *tview.Application, pages *tview.Pages, tree *tview.TreeVie
 			}
 		} else if event.Rune() == 'c' {
 			root := tree.GetRoot()
-			err := handleDropdown(app, pages, root, infoPanel, eventPanel, cfg)
+			err := handleDropdown(app, pages, root, infoPanel, eventPanel)
 			if err != nil {
 				infoPanel.SetText(fmt.Sprintf("error creating session: %v", err)).SetTextColor(tcell.ColorRed)
 				return nil

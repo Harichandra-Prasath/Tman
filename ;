@@ -10,10 +10,10 @@ type TmanConfig struct {
 	WorkDir string
 }
 
-var GlobalTmanConfig *TmanConfig
+var config *TmanConfig
 
-func InitialiseConfig(cfg *TmanConfig) {
-	GlobalTmanConfig = cfg
+func InitialiseConfig(cfg TmanConfig) {
+	config.WorkDir = dir
 }
 
 type TmuxTreeNode struct {

@@ -8,9 +8,9 @@ import (
 	tview "github.com/rivo/tview"
 )
 
-func StartUI(cfg *tman.TmanConfig) error {
+func StartUI() error {
 	app := tview.NewApplication()
-	pages, err := buildUI(app, cfg)
+	pages, err := buildUI(app)
 	if err != nil {
 		return fmt.Errorf("building ui: %v", err)
 	}
@@ -21,7 +21,7 @@ func StartUI(cfg *tman.TmanConfig) error {
 	return nil
 }
 
-func buildUI(app *tview.Application, cfg *tman.TmanConfig) (*tview.Pages, error) {
+func buildUI(app *tview.Application) (*tview.Pages, error) {
 	// Info Panel
 	infoPanel := tview.NewTextView().SetDynamicColors(true)
 	infoPanel.SetTitle(" Details ").SetBorder(true)
@@ -67,7 +67,6 @@ func buildUI(app *tview.Application, cfg *tman.TmanConfig) (*tview.Pages, error)
 	pages := tview.NewPages()
 	pages.AddPage("main", centerColFlex, true, true)
 
-	app.SetInputCapture(appKeyHooks(app, pages, tree, eventPanel, infoPanel, cfg))
-
+	centerColFlex.SetInputCapture(globalKeyHooks(app, pages, tree, eventPanel, infoPanel))
 	return pages, nil
 }

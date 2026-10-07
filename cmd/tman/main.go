@@ -9,35 +9,37 @@ import (
 	"github.com/Harichandra-Prasath/Tman/pkg/ui"
 )
 
-func parseFlags(progName string, args []string) (*tman.TmanConfig, error) {
+func parseFlags(progName string, args []string) error {
 	fs := flag.NewFlagSet(progName, flag.ContinueOnError)
 	cfg := &tman.TmanConfig{}
 
 	fs.StringVar(&cfg.WorkDir, "work-dir", os.Getenv("HOME"), "Working Directory for creating Sessions")
 
 	if err := fs.Parse(args); err != nil {
-		return nil, err
+		return err
 	}
 
 	if cfg.WorkDir == "" {
-		return nil, fmt.Errorf("invalid workdir for creating sessions")
+		return fmt.Errorf("invalid workdir for creating sessions")
 	}
 
 	_, err := os.Stat(cfg.WorkDir)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return cfg, nil
+	tman.InitialiseConfig(cfg)
+
+	return nil
 }
 
 func main() {
-	cfg, err := parseFlags(os.Args[0], os.Args[1:])
+	err := parseFlags(os.Args[0], os.Args[1:])
 	if err != nil {
 		panic(err)
 	}
 
-	if err = ui.StartUI(cfg); err != nil {
+	if err = ui.StartUI(); err != nil {
 		panic(err)
 	}
 }

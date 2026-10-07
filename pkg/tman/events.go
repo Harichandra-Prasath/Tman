@@ -3,6 +3,7 @@ package tman
 import (
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -72,7 +73,9 @@ func SwitchTmuxComponent(comp TmuxComponent) (string, error) {
 	return msg, nil
 }
 
-func CreateSessionComponent(sessionDir string, name string, rootComp *Root) (*Session, error) {
+func CreateSessionComponent(name string, rootComp *Root) (*Session, error) {
+	sessionDir := filepath.Join(GlobalTmanConfig.WorkDir, name)
+
 	// drop the . for hidden folders
 	name = strings.TrimPrefix(name, ".")
 
