@@ -144,9 +144,10 @@ func treeKeyHooks(tree *tview.TreeView, infoPanel *tview.TextView, eventPanel *t
 				infoPanel.SetText(fmt.Sprintf("switching to target: %v", err)).SetTextColor(tcell.ColorRed)
 				return event
 			}
-
-			eventPanel.SetText(msg).SetTextColor(tcell.ColorGreen)
-			app.Stop()
+			if msg != "" {
+				eventPanel.SetText(msg).SetTextColor(tcell.ColorGreen)
+				app.Stop()
+			}
 		default:
 			return event
 		}

@@ -47,6 +47,7 @@ func SwitchTmuxComponent(comp TmuxComponent) (string, error) {
 	switch ref := comp.(type) {
 	case *Root:
 		return "", nil
+
 	case *Session:
 		target := ref.sessionName
 		msg = "Switched to Session: " + target

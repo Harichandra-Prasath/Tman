@@ -2,8 +2,8 @@
 
 **Lightweight Manager for Tmux.**
 
-A terminal UI for browsing and pruning your tmux server. Tman renders the whole
-`Server → Session → Window → Pane` hierarchy as a navigable tree compared to 
+A terminal UI for browsing, pruning and growing your tmux server. Tman renders the
+whole `Server → Session → Window → Pane` hierarchy as a navigable tree compared to 
 tmux's own prefix-key interface.
 
 ![Tman TUI](assets/screenshot.png)
@@ -24,7 +24,8 @@ Tmux Server
 ```
 
 Nodes are colour-coded by depth — server (green), session (blue), window (aqua),
-pane (purple) — and the layout is three panels:
+pane (purple) — and the layout is three panels, plus an overlay that appears when you
+create a session:
 
 | Panel | Behaviour |
 | --- | --- |
@@ -32,12 +33,14 @@ pane (purple) — and the layout is three panels:
 | **Details** | Everything known about the node under your cursor — created-at, socket path, pane command, and so on. |
 | **Events** | The outcome of your last action. |
 | **Guide** | The keybindings, so you never have to remember them. |
+| **Directories** *(overlay)* | Searchable list of folders to start a new session in. Opens over the tree on `c`. |
 
 ## Features
 
 - Browse the server, session, window and pane hierarchy from a single tree.
 - Lazy expansion — one `tmux` call per level, only when you ask for it.
 - Delete any component: the server, a session, a window or a pane.
+- Create a session from any folder under a working directory, with a searchable picker.
 - Switch the attached tmux client straight to a session, window or pane with `s`.
 - Re-sync the whole tree from a live tmux server at any time.
 - Per-node details, action feedback and an in-app keybinding guide.
@@ -82,12 +85,20 @@ The raw invocation, if you would rather skip the Makefile:
 go build -C cmd/tman -o target/tman
 ```
 
+Tman takes one flag, `-work-dir`, the folder whose subfolders are offered when you
+create a session. It defaults to `$HOME` and must exist:
+
+```bash
+./target/tman -work-dir ~/code
+```
+
 ## Keybindings
 
 | Key | Scope | Action |
 | --- | --- | --- |
 | `q` / `Esc` | Global | Quit Tman |
 | `r` | Global | Refresh — re-sync the tree from the tmux server |
+| `c` | Global | Create a session — opens the folder picker |
 | `Enter` | Node | Expand / collapse (fetches children on first expand) |
 | `d` | Node | Delete the selected component |
 | `s` | Node | Switch the attached tmux client to the selected component, then quit Tman |
@@ -97,6 +108,30 @@ view keeps matching the server.
 
 > **Careful:** `d` on the server node runs `tmux kill-server` — it takes down every
 > session, window and pane at once. There is no confirmation prompt.
+
+### Creating a session
+
+Press `c` anywhere and Tman overlays a **Directories** panel listing every folder
+inside your working directory:
+
+![The searchable folder picker that opens on c](assets/creation.png)
+
+- Type to filter — the match is a case-insensitive substring, updated as you type.
+- `↓` moves from the search field into the list, `↑` jumps back, `Esc` closes the
+  overlay without doing anything.
+- `Enter` on a folder runs `tmux new-session -d -c <work-dir>/<folder>`, naming both
+  the session and its window after the folder.
+
+A few things worth knowing about what you get:
+
+- The session is created **detached**. You stay in Tman, the new node appears under
+  the server in blue, and the Events panel reports `New Session Created: <name>`.
+  Press `s` on it when you are ready to drop in.
+- Hidden folders are offered too, but they lose their leading dot for the name —
+  `.config` becomes the session `config`, and it still starts inside `.config`.
+- Folders only. Files in the working directory are never listed.
+- If the name is already taken by an existing session, tmux refuses and the error
+  lands in the Details panel; nothing is added to the tree.
 
 ### Switching targets
 
@@ -139,9 +174,15 @@ each holding a reference back up to its parent.
   `kill-pane`. Switching: the same three levels → `switch-client`. Targets
   are assembled from the parent chain, so a pane is addressed as
   `session:window.pane`.
+- `CreateSessionComponent` builds `tmux new-session -d -c <dir> -n <name> -s <name>`
+  from the selected folder, then constructs the `Session` itself rather than
+  re-querying tmux for it.
+- `core.go` carries `TmanConfig`, the one struct the CLI and the UI share. `cmd/tman`
+  parses `-work-dir` into it before the UI ever starts.
 
 **`pkg/ui` — the presentation.** A tview `TreeView` beside three `TextView` panels,
-with key handling split into a global capture and a per-node capture.
+with key handling split into a global capture and a per-node capture. The whole thing
+lives on a `tview.Pages`, so the folder picker can sit on a page above it.
 
 - Nodes are wrapped in a `TmuxTreeNode`, which pairs a component with its
   `*tview.TreeNode` parent. That parent link is what lets the UI prune the tree
@@ -151,17 +192,23 @@ with key handling split into a global capture and a per-node capture.
   children toggles instead.
 - `events.go` implements deletion, recursing upward to drop parents that have just
   lost their last child, and handles `s` by issuing the switch and stopping the
-  application so the terminal goes back to tmux.
+  application so the terminal goes back to tmux. Its global capture also owns `c`.
+- `dropdown.go` builds the folder picker: an `InputField` that re-filters a `List` on
+  every keystroke, with focus hopping between the two. Choosing a row calls into
+  `pkg/tman` and appends the new session to the tree in place — no refresh needed.
 
-One `tmux` subprocess per expansion, and nothing is cached between them.
+One `tmux` subprocess per expansion and per mutation, and nothing is cached between
+them.
 
 ## Roadmap
 
 Tman is young, and every rough edge below is something intended to fix. Next major features that are planned to release are  
  
 - [x] ~~Switch to diffrent sessions using a key (similar to `tmux switchc -t $TARGET_SESSION`)~~ — **done.** `s` on a session, window or pane, via `tmux switch-client -t <target>`
-- Create Sessions, Windows, Panes under a valid Parent or Root
-- General Improvements on Performance (Reducing subprocesses)
+- [x] ~~Create Sessions, Windows, Panes under a valid Parent or Root~~ — **sessions done.** `c` opens a folder picker and runs `tmux new-session`
+- [ ] Creation for windows and panes (the above only covered sessions)
+- [ ] Start with no sessions existing — you still need a running server to open Tman, so the create feature cannot seed the first one
+- [ ] General Improvements on Performance (Reducing subprocesses)
 
 
 ## Contributing
