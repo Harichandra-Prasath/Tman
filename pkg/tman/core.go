@@ -2,23 +2,10 @@ package tman
 
 import (
 	"fmt"
-
-	"github.com/rivo/tview"
 )
 
 type TmanConfig struct {
 	WorkDir string
-}
-
-var GlobalTmanConfig *TmanConfig
-
-func InitialiseConfig(cfg *TmanConfig) {
-	GlobalTmanConfig = cfg
-}
-
-type TmuxTreeNode struct {
-	Parent    *tview.TreeNode
-	Component TmuxComponent
 }
 
 type TmuxComponent interface {

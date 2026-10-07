@@ -8,9 +8,9 @@ import (
 	tview "github.com/rivo/tview"
 )
 
-func StartUI() error {
+func StartUI(cfg *tman.TmanConfig) error {
 	app := tview.NewApplication()
-	pages, err := buildUI(app)
+	pages, err := buildUI(app, cfg)
 	if err != nil {
 		return fmt.Errorf("building ui: %v", err)
 	}
@@ -21,7 +21,7 @@ func StartUI() error {
 	return nil
 }
 
-func buildUI(app *tview.Application) (*tview.Pages, error) {
+func buildUI(app *tview.Application, cfg *tman.TmanConfig) (*tview.Pages, error) {
 	// Info Panel
 	infoPanel := tview.NewTextView().SetDynamicColors(true)
 	infoPanel.SetTitle(" Details ").SetBorder(true)
@@ -46,12 +46,12 @@ func buildUI(app *tview.Application) (*tview.Pages, error) {
 	if err != nil {
 		return nil, fmt.Errorf("retrieving root and sessions: %v", err)
 	}
-	root := tview.NewTreeNode(rootComp.Name()).SetReference(&tman.TmuxTreeNode{Parent: nil, Component: rootComp}).SetColor(tcell.ColorGreen)
+	root := tview.NewTreeNode(rootComp.Name()).SetReference(&TmanTreeNode{Parent: nil, Component: rootComp}).SetColor(tcell.ColorGreen)
 	tree.SetRoot(root).SetCurrentNode(root)
 
-	var rootChilds []*tman.TmuxTreeNode
+	var rootChilds []*TmanTreeNode
 	for _, session := range sessions {
-		rootChilds = append(rootChilds, &tman.TmuxTreeNode{Parent: root, Component: session})
+		rootChilds = append(rootChilds, &TmanTreeNode{Parent: root, Component: session})
 	}
 	addNodes(root, rootChilds, tcell.ColorBlue)
 
@@ -67,6 +67,6 @@ func buildUI(app *tview.Application) (*tview.Pages, error) {
 	pages := tview.NewPages()
 	pages.AddPage("main", centerColFlex, true, true)
 
-	centerColFlex.SetInputCapture(globalKeyHooks(app, pages, tree, eventPanel, infoPanel))
+	centerColFlex.SetInputCapture(globalKeyHooks(app, cfg, pages, tree, eventPanel, infoPanel))
 	return pages, nil
 }

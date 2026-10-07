@@ -18,7 +18,10 @@ func runStandard(cmd *exec.Cmd) (*bufio.Scanner, error) {
 
 	err := cmd.Run()
 	if err != nil {
-		return nil, fmt.Errorf("error in run: %v", er.String())
+		if detail := strings.TrimSpace(er.String()); detail != "" {
+			return nil, fmt.Errorf("%s (%v)", detail, err)
+		}
+		return nil, fmt.Errorf("%v", err)
 	}
 
 	// Expand the output for safe exits
@@ -77,15 +80,15 @@ func GetRootAndSessions() (*Root, []*Session, error) {
 	rootBuild := true
 	for scanner.Scan() {
 		lineText := scanner.Text()
-		session, _root, err := parseSessionLine(lineText, rootBuild)
+		session, tempRoot, err := parseSessionLine(lineText, rootBuild)
 		if rootBuild {
-			root = _root
+			root = tempRoot
 			rootBuild = false
 		}
-		session.root = root
 		if err != nil {
 			return nil, nil, fmt.Errorf("line text parsing: %v", err)
 		}
+		session.root = root
 		sessions = append(sessions, session)
 	}
 
@@ -123,10 +126,11 @@ func GetWindows(session *Session) ([]*Window, error) {
 	for scanner.Scan() {
 		lineText := scanner.Text()
 		window, err := parseWindowLine(lineText)
-		window.parentSession = session
 		if err != nil {
 			return nil, fmt.Errorf("line text parsing: %v", err)
 		}
+		window.parentSession = session
+
 		windows = append(windows, window)
 	}
 
